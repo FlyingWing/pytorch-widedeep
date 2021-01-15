@@ -53,6 +53,9 @@ keep_cols = [
     "reviews_per_month",
 ]
 
+
+keep_cols = [col for col in keep_cols if col in df_original.columns]
+
 df = df_original[keep_cols]
 df = df[~df.reviews_per_month.isna()]
 df = df[~df.description.isna()]
@@ -66,10 +69,11 @@ print(df.shape)
 #
 # I will simply include a binary column with 1/0 if the property has/has not
 # house rules.
-df["has_house_rules"] = df["house_rules"]
-df.has_house_rules.fillna(0, inplace=True)
-df["has_house_rules"][df.has_house_rules != 0] = 1
-df.drop("house_rules", axis=1, inplace=True)
+
+# df["has_house_rules"] = df["house_rules"]
+# df.has_house_rules.fillna(0, inplace=True)
+# df["has_house_rules"][df.has_house_rules != 0] = 1
+# df.drop("house_rules", axis=1, inplace=True)
 
 # host_name
 #
@@ -110,7 +114,7 @@ df.beds.fillna(1, inplace=True)
 # Encode some as categorical
 categorical_cut = [
     ("accommodates", 3),
-    ("guests_included", 3),
+    # ("guests_included", 3),
     ("minimum_nights", 3),
     ("host_listings_count", 3),
     ("bathrooms", 1.5),
@@ -120,7 +124,7 @@ categorical_cut = [
 
 for col, cut in categorical_cut:
     new_colname = col + "_catg"
-    df[new_colname] = df[col].apply(lambda x: cut if x >= cut else x)
+    df[new_colname] = df[col].apply(lambda x: cut if x >= cut else x).replace(np.nan, 0).replace(np.inf, 0)
     df[new_colname] = df[new_colname].round().astype(int)
 
 # Amenities
@@ -181,7 +185,11 @@ df.head()
 
 # Price, security_deposit, cleaning_fee, extra_people
 
-money_columns = ["price", "security_deposit", "cleaning_fee", "extra_people"]
+money_columns = ["price", 
+                # "security_deposit", 
+                # "cleaning_fee", 
+                # "extra_people"
+                ]
 tmp_money_df = df[money_columns].fillna("$0")
 
 money_repls = (("$", ""), (",", ""))
@@ -198,14 +206,14 @@ for col in money_columns:
 high_price, high_deposit, high_cleaning_fee, high_extra_people = 1000, 2000, 200, 100
 
 high_price_count = (tmp_money_df.price >= high_price).sum()
-high_deposit_count = (tmp_money_df.security_deposit >= high_deposit).sum()
-high_cleaning_fee_count = (tmp_money_df.cleaning_fee >= high_cleaning_fee).sum()
-high_extra_people_count = (tmp_money_df.extra_people >= high_extra_people).sum()
+# high_deposit_count = (tmp_money_df.security_deposit >= high_deposit).sum()
+# high_cleaning_fee_count = (tmp_money_df.cleaning_fee >= high_cleaning_fee).sum()
+# high_extra_people_count = (tmp_money_df.extra_people >= high_extra_people).sum()
 
 print("properties with very high price: {}".format(high_price_count))
-print("properties with very high security deposit: {}".format(high_deposit_count))
-print("properties with very high cleaning fee: {}".format(high_cleaning_fee_count))
-print("properties with very high extra people cost: {}".format(high_extra_people_count))
+# print("properties with very high security deposit: {}".format(high_deposit_count))
+# print("properties with very high cleaning fee: {}".format(high_cleaning_fee_count))
+# print("properties with very high extra people cost: {}".format(high_extra_people_count))
 
 # We will now just concat and we will drop high values later one
 df.drop(money_columns, axis=1, inplace=True)
@@ -213,9 +221,9 @@ df = pd.concat([df, tmp_money_df], axis=1)
 df = df[
     (df.price < high_price)
     & (df.price != 0)
-    & (df.security_deposit < high_deposit)
-    & (df.cleaning_fee < high_cleaning_fee)
-    & (df.extra_people < high_extra_people)
+    # & (df.security_deposit < high_deposit)
+    # & (df.cleaning_fee < high_cleaning_fee)
+    # & (df.extra_people < high_extra_people)
 ]
 df.head()
 print(df.shape)
@@ -240,8 +248,8 @@ if not has_nan:
 # Francisco model assumptions simply multiply my yield by 6 (3 * (1/0.5)) or
 # by 72 (3 * 2 * 12) if you prefer per year.
 
-df["yield"] = (df["price"] + df["cleaning_fee"]) * (df["reviews_per_month"])
-df.drop(["price", "cleaning_fee", "reviews_per_month"], axis=1, inplace=True)
+df["yield"] = (df["price"]) * (df["reviews_per_month"])
+df.drop(["price", "reviews_per_month"], axis=1, inplace=True)
 # we will focus in cases with yield below 600 (we lose ~3% of the data).
 # No real reason for this, simply removing some "outliers"
 df = df[df["yield"] <= 600]
